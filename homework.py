@@ -54,14 +54,14 @@ def get_api_answer(timestamp: int) -> dict:
     params = {'from_date': current_time}
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
-        if response.status_code != HTTPStatus.OK:
-            text = 'Ответ от API не содержит статус 200'
-            logging.error('Не  содержит статус 200')
-            raise WrongResponseStatusCode(f'{text}')
-        return response.json()
     except requests.exceptions.RequestException as error:
         message = ('Ответ от API не содержит статус 200')
         raise WrongResponseStatusCode(message, error)
+    if response.status_code != HTTPStatus.OK:
+        text = 'Ответ от API не содержит статус 200'
+        logging.error('Не  содержит статус 200')
+        raise WrongResponseStatusCode(f'{text}')
+    return response.json()
 
 
 def check_response(response: dict) -> bool:
@@ -71,21 +71,21 @@ def check_response(response: dict) -> bool:
     homework_response = response.get('homeworks')
     if not isinstance(homework_response, list):
         raise TypeError(
-            'Ответ от API имеет неверный тип по ключу "homeworks"'
+            'Ответ от API имеет неверный тип по ключу "homeworks"',
         )
     logging.debug('API вернул корректный ответ.')
-    return response.get('homeworks')
+    return homework_response
 
 
 def parse_status(homework: bool) -> str:
     """Информация о конкретной домашней работе."""
     homework_name = homework.get('homework_name')
     homework_status = homework.get('status')
-    if 'homework_name' not in homework:
+    if not  homework_name:
         raise KeyError('Имя работы отсутствует')
-    if homework_status not in HOMEWORK_VERDICTS:
+    verdict = HOMEWORK_VERDICTS.get(homework_status)
+    if not verdict:
         raise KeyError('В домашней работе нет необходимого статуса')
-    verdict = HOMEWORK_VERDICTS[homework_status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
@@ -108,9 +108,9 @@ def main() -> str:
             homeworks = check_response(response)
             if homeworks:
                 homework = homeworks[0]
+                logger.debug('Статус изменился')
                 message = parse_status(homework)
-                last_response = None
-                if homework != last_response:
+                if homework:
                     send_message(bot, message)
             else:
                 logger.debug('Новых статусов нет')
@@ -118,7 +118,7 @@ def main() -> str:
                 message = f'{text}'
                 send_message(bot, message)
 
-        except ProgramMalfunction as error:
+        except (KeyError, TypeError, WrongResponseStatusCode) as error:
             logger.error(f'Сбой в работе программы: {error}')
             message = f'Сбой в работе программы: {error}'
             send_message(bot, message)
