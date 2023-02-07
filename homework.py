@@ -8,8 +8,7 @@ import requests
 import telegram
 from dotenv import load_dotenv
 
-from exeptions import (ProgramMalfunction,
-                       WrongResponseStatusCode)
+from exeptions import WrongResponseStatusCode
 
 load_dotenv()
 
@@ -81,7 +80,7 @@ def parse_status(homework: bool) -> str:
     """Информация о конкретной домашней работе."""
     homework_name = homework.get('homework_name')
     homework_status = homework.get('status')
-    if not  homework_name:
+    if not homework_name:
         raise KeyError('Имя работы отсутствует')
     verdict = HOMEWORK_VERDICTS.get(homework_status)
     if not verdict:
